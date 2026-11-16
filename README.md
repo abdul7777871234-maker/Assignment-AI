@@ -6,11 +6,11 @@ Streamlit academic writing assistant with Groq-first streaming, Gemini fallback,
 - Chat-first interface with file attachment control.
 - Humanize, Deep Rewrite, and Assignment modes.
 - Groq primary provider and Gemini fallback.
-- Streaming model output.
+- Streaming model output.\n- Download any completed AI response as a formatted Microsoft Word (.docx) document.
 - PDF, DOCX, TXT, Markdown, RTF, PPTX, XLSX, CSV and image OCR extraction.
 - Fernet encryption at rest for uploaded files.
 - Manual deletion and 30-minute expiry.
-- 25 MB per-file upload limit.
+- 50 MB per-file upload limit.
 
 ## Local setup
 1. Use Python 3.11 or newer.
