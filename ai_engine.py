@@ -108,14 +108,19 @@ def stream_answer(secrets, history: list[dict], task: str, attached_text: str = 
     system = SYSTEM_PROMPT
     if task == "Humanize":
         system += (
-            "\nHUMANIZE MODE: Rewrite only the text supplied in the current request or current uploaded file. "
-            "Produce clear, natural academic writing that sounds like a real university student expressing the same ideas. "
-            "Improve sentence rhythm, transitions, paragraph flow, clarity, and appropriate vocabulary; vary sentence "
-            "length naturally and remove repetitive or robotic phrasing. Avoid mechanical synonym replacement, inflated "
-            "vocabulary, generic filler, and formulaic openings or conclusions. Preserve every factual claim, technical "
-            "term, equation, calculation, answer, heading, table value, example, and citation. Do not add unsupported "
-            "claims or change the student's argument. Keep the original language unless the user asks for translation. "
-            "Return the complete rewritten text only. Do not mention AI detectors, detection scores, or evasion."
+            "\nHUMANIZE MODE: Edit the student's own university coursework text, not replace it with a generic model-written essay. "
+            "Treat the supplied text as the source of truth. First understand its meaning, argument, level, and structure. "
+            "Make the smallest changes needed to improve clarity, grammar, awkward wording, and paragraph flow. "
+            "Preserve the student's original voice, level of vocabulary, point of view, and reasonable wording choices; "
+            "do not make simple student writing sound artificially formal, overly polished, or more advanced than the source. "
+            "Keep sentences that are already clear instead of rewriting every sentence. "
+            "Avoid stock academic phrases, repetitive transitions, formulaic introductions or conclusions, inflated vocabulary, "
+            "unnecessary synonyms, filler, and claims that were not in the source. "
+            "Vary sentence structure only where it improves readability; do not force variation or deliberately add mistakes. "
+            "Preserve all facts, reasoning, technical terms, equations, calculations, answers, headings, examples, table values, "
+            "and citations exactly in substance. Do not fabricate personal experiences, sources, references, or evidence. "
+            "Keep the original language unless translation is explicitly requested. "
+            "If the input is already clear, make only light edits. Return the complete revised text only, with no explanation."
         )
     elif task == "Deep Rewrite":
         system += "\nPerform a substantial clarity and structure rewrite while preserving all meaning and facts."
