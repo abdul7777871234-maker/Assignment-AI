@@ -30,12 +30,12 @@ def build_docx_bytes(title: str, markdown_text: str) -> bytes:
             doc.add_heading(stripped[2:], level=1)
         elif stripped.startswith(("- ", "* ")):
             doc.add_paragraph(stripped[2:], style="List Bullet")
-        elif re.match(r"^\\d+[.)]\\s+", stripped):
-            doc.add_paragraph(re.sub(r"^\\d+[.)]\\s+", "", stripped), style="List Number")
+        elif re.match(r"^\d+[.)]\s+", stripped):
+            doc.add_paragraph(re.sub(r"^\d+[.)]\s+", "", stripped), style="List Number")
         else:
             # Remove lightweight Markdown markers while keeping the response readable.
-            clean = re.sub(r"\\*\\*(.*?)\\*\\*", r"\\1", stripped)
-            clean = re.sub(r"(?<!\\*)\\*(?!\\*)(.*?)\\*(?!\\*)", r"\\1", clean)
+            clean = re.sub(r"\*\*(.*?)\*\*", r"\1", stripped)
+            clean = re.sub(r"(?<!\*)\*(?!\*)(.*?)\*(?!\*)", r"\1", clean)
             doc.add_paragraph(clean)
     buffer = BytesIO()
     doc.save(buffer)
