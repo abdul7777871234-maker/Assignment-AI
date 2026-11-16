@@ -273,7 +273,7 @@ if prompt:
                 extracted = extract_text(meta["name"], raw)
                 del raw
                 if extracted and extracted.strip():
-                    refs.append(f"FILE: {meta['name']}\\n{extracted}")
+                    refs.append(f"FILE: {meta['name']}\n{extracted}")
                 else:
                     st.warning(f"{meta['name']}: no readable text was extracted from this file.")
             except Exception as exc:
@@ -281,7 +281,7 @@ if prompt:
                 store.delete(fid)
                 st.session_state.uploads.pop(fid, None)
         st.session_state.pending_upload_ids = []
-        context = "\\n\\n---\\n\\n".join(refs)[:120000]
+        context = "\n\n---\n\n".join(refs)[:120000]
         with st.chat_message("assistant"):
             placeholder = st.empty()
             answer = ""
