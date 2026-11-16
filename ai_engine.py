@@ -33,6 +33,20 @@ DEFAULT_GEMINI_FALLBACKS = [
 ]
 
 
+def _clean_answer(text: str) -> str:
+    """Remove malformed Markdown escape artifacts from provider output."""
+    text = text.replace(r"\\*\\*", "**").replace(r"\\*", "*")
+    cleaned = []
+    for line in text.splitlines():
+        item = line.strip()
+        if item in {r"\\1", r"\\\\1"}:
+            continue
+        if item in {"---", r"\\---", "***"}:
+            continue
+        cleaned.append(line)
+    return "\\n".join(cleaned).strip()
+
+
 def _secret(secrets, key: str, default: str = "") -> str:
     try:
         return str(secrets.get(key, default)).strip()
@@ -112,7 +126,7 @@ def stream_answer(secrets, history: list[dict], task: str, attached_text: str = 
                 delta = chunk.choices[0].delta.content
                 if delta:
                     parts.append(delta)
-            answer = "".join(parts).strip()
+            answer = _clean_answer("".join(parts))
             if not answer:
                 raise RuntimeError("Groq returned an empty response.")
             yield answer
@@ -145,7 +159,7 @@ def stream_answer(secrets, history: list[dict], task: str, attached_text: str = 
                                 chunk_text = getattr(chunk, "text", None)
                                 if chunk_text:
                                     parts.append(chunk_text)
-                            answer = "".join(parts).strip()
+                            answer = _clean_answer("".join(parts))
                             if not answer:
                                 raise RuntimeError("Gemini returned an empty response.")
                             break
