@@ -169,6 +169,9 @@ for fid, meta in list(st.session_state.uploads.items()):
     if now >= meta["expires_at"]:
         store.delete(fid)
         st.session_state.uploads.pop(fid, None)
+st.session_state.pending_upload_ids = [
+    fid for fid in st.session_state.pending_upload_ids if fid in st.session_state.uploads
+]
 
 st.markdown("""
 <style>
@@ -217,6 +220,9 @@ if st.session_state.uploads:
             if c.button("Delete", key=f"delete_{fid}"):
                 store.delete(fid)
                 st.session_state.uploads.pop(fid, None)
+                st.session_state.pending_upload_ids = [
+                    pending_id for pending_id in st.session_state.pending_upload_ids if pending_id != fid
+                ]
                 st.rerun()
 
 for msg in st.session_state.messages:
