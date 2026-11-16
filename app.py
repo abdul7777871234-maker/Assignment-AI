@@ -35,7 +35,7 @@ def build_docx_bytes(title: str, markdown_text: str) -> bytes:
         else:
             # Remove lightweight Markdown markers while keeping the response readable.
             clean = re.sub(r"\*\*(.*?)\*\*", r"\1", stripped)
-            clean = re.sub(r"(?<!\*)\*(?!\*)(.*?)\*(?!\*)", r"\1", clean)
+            clean = re.sub(r"\*([^*]+)\*", r"\1", clean)
             doc.add_paragraph(clean)
     buffer = BytesIO()
     doc.save(buffer)
