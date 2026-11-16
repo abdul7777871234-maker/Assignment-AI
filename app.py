@@ -59,7 +59,7 @@ with st.sidebar:
         st.session_state.messages = []
         st.rerun()
     if st.button("Delete all uploaded files", use_container_width=True):
-        store.delete_all()
+        store.delete_all(list(st.session_state.uploads.keys()))
         st.session_state.uploads = {}
         st.success("All current-session uploads deleted.")
         st.rerun()
@@ -104,6 +104,8 @@ if prompt:
             st.error(f"Could not securely store {uploaded.name}: {exc}")
 
     user_text = (getattr(prompt, "text", "") or "").strip()
+    if incoming and not user_text:
+        st.rerun()
     if user_text:
         st.session_state.messages.append({"role": "user", "content": user_text})
         with st.chat_message("user"):
