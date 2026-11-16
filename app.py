@@ -66,8 +66,8 @@ for fid, meta in list(st.session_state.uploads.items()):
 st.markdown("""
 <style>
 .stApp { background: radial-gradient(ellipse at 15% 0%, #261744 0%, #100B1C 48%, #0B0812 100%); }
-.block-container { max-width: 1120px; padding-top: 1.5rem; }
-.brand { font-size: 2rem; font-weight: 800; letter-spacing: -.04em; color: #F5F0FF; }
+.block-container { max-width: 1120px; padding-top: 3.5rem; }
+.brand { display: block; overflow: visible; margin: 0 0 .35rem; padding-top: .15rem; font-size: 2rem; font-weight: 800; line-height: 1.3; letter-spacing: -.04em; color: #F5F0FF; }
 .brand span { color: #B69CFF; }
 .subtle { color: #B7A9CC; }
 div[data-testid="stChatMessage"] { border: 1px solid rgba(190,160,255,.12); border-radius: 16px; background: rgba(31,21,49,.66); }
