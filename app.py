@@ -1,13 +1,46 @@
 from __future__ import annotations
 import time
+from io import BytesIO
+import re
 import streamlit as st
+from docx import Document
 from ai_engine import stream_answer
 from document_parser import extract_text
 from security_store import SecureUploadStore, start_cleanup_scheduler
 
 APP_NAME = "University Assignment AI"
-MAX_FILE_BYTES = 25 * 1024 * 1024
+MAX_FILE_BYTES = 50 * 1024 * 1024
 st.set_page_config(page_title=APP_NAME, page_icon="🎓", layout="wide")
+
+def build_docx_bytes(title: str, markdown_text: str) -> bytes:
+    """Create a downloadable Word document from an assistant response."""
+    doc = Document()
+    doc.core_properties.title = title
+    doc.add_heading(title, level=0)
+    for raw_line in markdown_text.splitlines():
+        line = raw_line.rstrip()
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if stripped.startswith("### "):
+            doc.add_heading(stripped[4:], level=3)
+        elif stripped.startswith("## "):
+            doc.add_heading(stripped[3:], level=2)
+        elif stripped.startswith("# "):
+            doc.add_heading(stripped[2:], level=1)
+        elif stripped.startswith(("- ", "* ")):
+            doc.add_paragraph(stripped[2:], style="List Bullet")
+        elif re.match(r"^\\d+[.)]\\s+", stripped):
+            doc.add_paragraph(re.sub(r"^\\d+[.)]\\s+", "", stripped), style="List Number")
+        else:
+            # Remove lightweight Markdown markers while keeping the response readable.
+            clean = re.sub(r"\\*\\*(.*?)\\*\\*", r"\\1", stripped)
+            clean = re.sub(r"(?<!\\*)\\*(?!\\*)(.*?)\\*(?!\\*)", r"\\1", clean)
+            doc.add_paragraph(clean)
+    buffer = BytesIO()
+    doc.save(buffer)
+    return buffer.getvalue()
+
 
 def get_store():
     key = st.secrets.get("UPLOAD_ENCRYPTION_KEY", "")
@@ -82,19 +115,29 @@ if st.session_state.uploads:
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
+        if msg["role"] == "assistant" and msg["content"] and not msg["content"].startswith("Generation error:"):
+            docx_data = build_docx_bytes("University Assignment AI - Solution", msg["content"])
+            st.download_button(
+                "Download as Word (.docx)",
+                data=docx_data,
+                file_name=f"assignment_solution_{st.session_state.messages.index(msg) + 1}.docx",
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                key=f"download_docx_{st.session_state.messages.index(msg)}",
+                use_container_width=False,
+            )
 
 prompt = st.chat_input(
     "Message University Assignment AI…",
     accept_file="multiple",
     file_type=["pdf", "docx", "txt", "md", "rtf", "pptx", "xlsx", "csv", "png", "jpg", "jpeg", "webp"],
-    max_upload_size=25,
+    max_upload_size=50,
 )
 if prompt:
     incoming = getattr(prompt, "files", []) or []
     for uploaded in incoming:
         raw = uploaded.getvalue()
         if len(raw) > MAX_FILE_BYTES:
-            st.error(f"{uploaded.name}: file exceeds the 25 MB limit.")
+            st.error(f"{uploaded.name}: file exceeds the 50 MB limit.")
             continue
         try:
             meta = store.save(raw, uploaded.name)
@@ -137,5 +180,5 @@ if prompt:
         st.rerun()
 
 st.divider()
-st.caption("Text extraction: PDF, DOCX, TXT, Markdown, RTF, PPTX, XLSX, CSV and common images. OCR requires Tesseract on the server. Maximum file size: 25 MB.")
+st.caption("Text extraction: PDF, DOCX, TXT, Markdown, RTF, PPTX, XLSX, CSV and common images. OCR requires Tesseract on the server. Maximum file size: 50 MB per file.")
 st.caption("30-minute expiry applies to uploaded source files and temporary processing copies. Generated chat responses remain until the chat is cleared or the session ends.")
