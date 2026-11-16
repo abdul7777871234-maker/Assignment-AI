@@ -160,7 +160,7 @@ def get_store():
     return store
 
 store = get_store()
-for key, default in [("messages", []), ("uploads", {})]:
+for key, default in [("messages", []), ("uploads", {}), ("pending_upload_ids", [])]:
     if key not in st.session_state:
         st.session_state[key] = default
 
@@ -249,6 +249,7 @@ if prompt:
         try:
             meta = store.save(raw, uploaded.name)
             st.session_state.uploads[meta["id"]] = meta
+            st.session_state.pending_upload_ids.append(meta["id"])
             st.success(f"Encrypted upload added: {meta['name']}")
         except Exception as exc:
             st.error(f"Could not securely store {uploaded.name}: {exc}")
@@ -261,24 +262,38 @@ if prompt:
         with st.chat_message("user"):
             st.markdown(user_text)
         refs = []
-        for fid, meta in list(st.session_state.uploads.items()):
+        pending_ids = list(st.session_state.pending_upload_ids)
+        has_new_attachments = bool(pending_ids)
+        for fid in pending_ids:
+            meta = st.session_state.uploads.get(fid)
+            if not meta:
+                continue
             try:
                 raw = store.read(fid)
-                refs.append(f"FILE: {meta['name']}\\n" + extract_text(meta["name"], raw))
+                extracted = extract_text(meta["name"], raw)
                 del raw
+                if extracted and extracted.strip():
+                    refs.append(f"FILE: {meta['name']}\\n{extracted}")
+                else:
+                    st.warning(f"{meta['name']}: no readable text was extracted from this file.")
             except Exception as exc:
                 st.warning(f"{meta['name']}: {exc}")
                 store.delete(fid)
                 st.session_state.uploads.pop(fid, None)
+        st.session_state.pending_upload_ids = []
         context = "\\n\\n---\\n\\n".join(refs)[:120000]
         with st.chat_message("assistant"):
             placeholder = st.empty()
             answer = ""
             try:
-                for piece in stream_answer(st.secrets, st.session_state.messages, task, attached_text=context):
-                    answer += piece
-                    placeholder.markdown(answer + "▌")
-                placeholder.markdown(answer)
+                if has_new_attachments and not context.strip():
+                    answer = "I couldn't extract readable text from the newly uploaded file. Please upload a text-based PDF/DOCX or a clear image, or check whether the file is scanned or password-protected."
+                    placeholder.warning(answer)
+                else:
+                    for piece in stream_answer(st.secrets, st.session_state.messages, task, attached_text=context):
+                        answer += piece
+                        placeholder.markdown(answer + "▌")
+                    placeholder.markdown(answer)
             except Exception as exc:
                 answer = f"Generation error: {type(exc).__name__}: {exc}"
                 placeholder.error(answer)
