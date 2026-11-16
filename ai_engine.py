@@ -108,7 +108,7 @@ def stream_answer(secrets, history: list[dict], task: str, attached_text: str = 
     system = SYSTEM_PROMPT
     if task == "Humanize":
         system += (
-            "\\nHUMANIZE MODE: Rewrite only the text supplied in the current request or current uploaded file. "
+            "\nHUMANIZE MODE: Rewrite only the text supplied in the current request or current uploaded file. "
             "Produce clear, natural academic writing that sounds like a real university student expressing the same ideas. "
             "Improve sentence rhythm, transitions, paragraph flow, clarity, and appropriate vocabulary; vary sentence "
             "length naturally and remove repetitive or robotic phrasing. Avoid mechanical synonym replacement, inflated "
