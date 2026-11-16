@@ -84,12 +84,10 @@ class SecureUploadStore:
                 continue
         return removed
 
-    def delete_all(self) -> None:
-        for path in STORE_DIR.glob("*.enc"):
-            try:
-                path.unlink(missing_ok=True)
-            except OSError:
-                continue
+    def delete_all(self, file_ids: list[str]) -> None:
+        # Delete only files belonging to the caller's current session.
+        for file_id in file_ids:
+            self.delete(file_id)
 
 
 def start_cleanup_scheduler(store: SecureUploadStore) -> None:
