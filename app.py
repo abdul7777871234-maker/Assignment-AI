@@ -80,7 +80,7 @@ with st.sidebar:
     st.markdown(f"### 🎓 {APP_NAME}")
     st.caption("Your academic writing and study workspace")
     st.divider()
-    task = st.radio("Workspace", ["Chat", "Humanize", "Deep Rewrite", "Assignment"])
+    task = st.radio("Workspace", ["Assignment", "MCQs"], index=0)
     st.divider()
     st.markdown("**AI providers**")
     st.write(("🟢" if st.secrets.get("GROQ_API_KEY", "") else "⚪") + " Groq")
