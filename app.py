@@ -13,34 +13,141 @@ MAX_FILE_BYTES = 50 * 1024 * 1024
 st.set_page_config(page_title=APP_NAME, page_icon="🎓", layout="wide")
 
 def build_docx_bytes(title: str, markdown_text: str) -> bytes:
-    """Create a downloadable Word document from an assistant response."""
+    """Render an assistant answer as a formatted Word document, including Markdown tables."""
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.enum.table import WD_TABLE_ALIGNMENT, WD_CELL_VERTICAL_ALIGNMENT
+    from docx.shared import Inches, Pt, RGBColor
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+
     doc = Document()
+    section = doc.sections[0]
+    section.top_margin = Inches(0.7)
+    section.bottom_margin = Inches(0.7)
+    section.left_margin = Inches(0.8)
+    section.right_margin = Inches(0.8)
+    normal = doc.styles["Normal"]
+    normal.font.name = "Times New Roman"
+    normal.font.size = Pt(11)
+    normal.font.color.rgb = RGBColor(35, 35, 35)
+    normal.paragraph_format.space_after = Pt(6)
+    for style_name in ("Heading 1", "Heading 2", "Heading 3"):
+        style = doc.styles[style_name]
+        style.font.name = "Times New Roman"
+        style.font.color.rgb = RGBColor(48, 44, 92)
+        style.font.bold = True
     doc.core_properties.title = title
-    doc.add_heading(title, level=0)
-    for raw_line in markdown_text.splitlines():
-        line = raw_line.rstrip()
-        stripped = line.strip()
-        if not stripped:
+
+    title_p = doc.add_paragraph()
+    title_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    title_run = title_p.add_run(title)
+    title_run.bold = True
+    title_run.font.name = "Times New Roman"
+    title_run.font.size = Pt(18)
+    title_run.font.color.rgb = RGBColor(48, 44, 92)
+    title_p.paragraph_format.space_after = Pt(16)
+
+    def add_inline(paragraph, text):
+        pattern = re.compile(r"(\*\*.*?\*\*|\*[^*]+\*)")
+        pos = 0
+        for match in pattern.finditer(text):
+            if match.start() > pos:
+                paragraph.add_run(text[pos:match.start()])
+            token = match.group(0)
+            run = paragraph.add_run(token[2:-2] if token.startswith("**") else token[1:-1])
+            if token.startswith("**"):
+                run.bold = True
+            else:
+                run.italic = True
+            pos = match.end()
+        if pos < len(text):
+            paragraph.add_run(text[pos:])
+
+    def cell_shading(cell, fill):
+        tc_pr = cell._tc.get_or_add_tcPr()
+        shd = OxmlElement("w:shd")
+        shd.set(qn("w:fill"), fill)
+        tc_pr.append(shd)
+
+    def add_markdown_table(rows):
+        parsed = []
+        for row in rows:
+            cells = [part.strip() for part in row.strip().strip("|").split("|")]
+            if cells and all(re.fullmatch(r":?-{3,}:?", cell.replace(" ", "")) for cell in cells):
+                continue
+            parsed.append(cells)
+        if not parsed:
+            return
+        width = max(len(row) for row in parsed)
+        table = doc.add_table(rows=0, cols=width)
+        table.alignment = WD_TABLE_ALIGNMENT.CENTER
+        table.style = "Table Grid"
+        for row_index, values in enumerate(parsed):
+            cells = table.add_row().cells
+            for col_index in range(width):
+                cell = cells[col_index]
+                cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+                value = values[col_index] if col_index < len(values) else ""
+                cell.text = ""
+                p = cell.paragraphs[0]
+                add_inline(p, value.replace(r"\(", "").replace(r"\)", ""))
+                for run in p.runs:
+                    run.font.name = "Times New Roman"
+                    run.font.size = Pt(10)
+                    if row_index == 0:
+                        run.bold = True
+                        run.font.color.rgb = RGBColor(255, 255, 255)
+                if row_index == 0:
+                    cell_shading(cell, "302C5C")
+                elif row_index % 2 == 0:
+                    cell_shading(cell, "F0EEF7")
+        doc.add_paragraph()
+
+    lines = markdown_text.replace("\r\n", "\n").split("\n")
+    i = 0
+    while i < len(lines):
+        stripped = lines[i].strip()
+        if not stripped or stripped in {"---", "***", "___", r"\1", r"\\1"}:
+            i += 1
+            continue
+        if stripped.startswith("|") and "|" in stripped[1:]:
+            table_lines = []
+            while i < len(lines) and lines[i].strip().startswith("|"):
+                table_lines.append(lines[i].strip())
+                i += 1
+            add_markdown_table(table_lines)
             continue
         if stripped.startswith("### "):
-            doc.add_heading(stripped[4:], level=3)
+            p = doc.add_heading(level=3)
+            add_inline(p, stripped[4:])
         elif stripped.startswith("## "):
-            doc.add_heading(stripped[3:], level=2)
+            p = doc.add_heading(level=2)
+            add_inline(p, stripped[3:])
         elif stripped.startswith("# "):
-            doc.add_heading(stripped[2:], level=1)
-        elif stripped.startswith(("- ", "* ")):
-            doc.add_paragraph(stripped[2:], style="List Bullet")
+            p = doc.add_heading(level=1)
+            add_inline(p, stripped[2:])
+        elif stripped.startswith(("- ", "* ", "• ")):
+            p = doc.add_paragraph(style="List Bullet")
+            add_inline(p, stripped[2:])
         elif re.match(r"^\d+[.)]\s+", stripped):
-            doc.add_paragraph(re.sub(r"^\d+[.)]\s+", "", stripped), style="List Number")
+            p = doc.add_paragraph(style="List Number")
+            add_inline(p, re.sub(r"^\d+[.)]\s+", "", stripped))
         else:
-            # Remove lightweight Markdown markers while keeping the response readable.
-            clean = re.sub(r"\*\*(.*?)\*\*", r"\1", stripped)
-            clean = re.sub(r"\*([^*]+)\*", r"\1", clean)
-            doc.add_paragraph(clean)
+            clean = stripped.replace(r"\(", "").replace(r"\)", "").replace(r"\[", "").replace(r"\]", "")
+            if clean and not clean.lower().startswith(("note: i can provide the solution in text format", "i am unable to generate a word file")):
+                p = doc.add_paragraph()
+                add_inline(p, clean)
+        i += 1
+
+    footer = section.footer.paragraphs[0]
+    footer.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    fr = footer.add_run("University Assignment AI")
+    fr.font.name = "Times New Roman"
+    fr.font.size = Pt(9)
+    fr.font.color.rgb = RGBColor(120, 120, 120)
     buffer = BytesIO()
     doc.save(buffer)
     return buffer.getvalue()
-
 
 def get_store():
     key = st.secrets.get("UPLOAD_ENCRYPTION_KEY", "")
@@ -80,7 +187,7 @@ with st.sidebar:
     st.markdown(f"### 🎓 {APP_NAME}")
     st.caption("Your academic writing and study workspace")
     st.divider()
-    task = st.radio("Workspace", ["Assignment", "MCQs"], index=0)
+    task = st.radio("Workspace", ["Assignment", "MCQs", "Humanize"], index=0)
     st.divider()
     st.markdown("**AI providers**")
     st.write(("🟢" if st.secrets.get("GROQ_API_KEY", "") else "⚪") + " Groq")
