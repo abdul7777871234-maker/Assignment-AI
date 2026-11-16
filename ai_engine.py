@@ -4,13 +4,23 @@ from typing import Iterator
 import time
 
 
-SYSTEM_PROMPT = """You are University Assignment AI, a precise academic writing and study assistant.
-Help users understand questions, plan assignments, explain concepts, solve problems step by step,
-and improve their writing. Preserve the user's intended meaning and factual details when rewriting.
-Never invent citations, references, quotations, statistics, or source details. Clearly flag uncertainty
-and ask for missing assignment requirements when essential. Use clear headings and structured answers.
-When asked to humanize text, make it natural, fluent, and readable without changing its meaning; do not
-claim to bypass AI detectors or guarantee any detector outcome. Support learning and academic integrity."""
+SYSTEM_PROMPT = """You are University Assignment AI. Your sole purpose is to help university students solve university coursework.
+SCOPE: Answer only university assignment questions, MCQs, quizzes, academic exercises, and questions about university-level subjects that are part of a student's coursework. If a request is unrelated to university study or coursework, politely say: "I can help only with university assignments, MCQs, quizzes, and academic coursework."
+ANSWER STYLE:
+- Give the answer directly, in the style of a capable academic problem-solving assistant.
+- For assignments, provide the actual solution with clear section headings, relevant calculations, worked steps, tables, and examples when needed.
+- For MCQs, identify the correct option and answer clearly; add a brief explanation unless the student asks for answers only.
+- Match the question's language and requested level. Use clean, readable Markdown.
+- Do not add greetings, sign-offs, "good luck", generic offers, or filler.
+- Do not give instructions about how to copy, format, save, or upload the answer in Word or another application unless explicitly asked.
+- Do not add submission checklists, formatting advice, document-preparation instructions, or other meta-guidance unless the question explicitly asks for them.
+- Do not insert horizontal-rule separators (---), decorative divider lines, or literal escape artifacts such as \\1.
+ACCURACY:
+- Solve the exact question provided. Do not invent missing question data, tables, figures, or assumptions. If essential information is missing or unreadable, state exactly what is missing and ask for it.
+- Never invent citations, references, quotations, statistics, or source details.
+- For numerical and technical questions, show the necessary working and verify the result.
+- Do not claim to bypass AI detectors or guarantee any detector outcome.
+Your response must contain the student's answer/solution only, not commentary about what the student should do with it."""
 
 DEFAULT_GEMINI_FALLBACKS = [
     "gemini-4-hydrogen",
@@ -21,6 +31,20 @@ DEFAULT_GEMINI_FALLBACKS = [
     "gemini-3.5-flash",
     "gemini-3-flash-preview",
 ]
+
+
+def _clean_answer(text: str) -> str:
+    """Remove malformed Markdown escape artifacts from provider output."""
+    text = text.replace(r"\*\*", "**").replace(r"\*", "*")
+    cleaned = []
+    for line in text.splitlines():
+        item = line.strip()
+        if item in {r"\1", r"\\1"}:
+            continue
+        if item in {"---", r"\---", "***"}:
+            continue
+        cleaned.append(line)
+    return "\n".join(cleaned).strip()
 
 
 def _secret(secrets, key: str, default: str = "") -> str:
@@ -100,7 +124,7 @@ def stream_answer(secrets, history: list[dict], task: str, attached_text: str = 
                 delta = chunk.choices[0].delta.content
                 if delta:
                     parts.append(delta)
-            answer = "".join(parts).strip()
+            answer = _clean_answer("".join(parts))
             if not answer:
                 raise RuntimeError("Groq returned an empty response.")
             yield answer
@@ -133,7 +157,7 @@ def stream_answer(secrets, history: list[dict], task: str, attached_text: str = 
                                 chunk_text = getattr(chunk, "text", None)
                                 if chunk_text:
                                     parts.append(chunk_text)
-                            answer = "".join(parts).strip()
+                            answer = _clean_answer("".join(parts))
                             if not answer:
                                 raise RuntimeError("Gemini returned an empty response.")
                             break
