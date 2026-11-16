@@ -35,17 +35,16 @@ DEFAULT_GEMINI_FALLBACKS = [
 
 def _clean_answer(text: str) -> str:
     """Remove malformed Markdown escape artifacts from provider output."""
-    text = text.replace(r"\\*\\*", "**").replace(r"\\*", "*")
+    text = text.replace(r"\*\*", "**").replace(r"\*", "*")
     cleaned = []
     for line in text.splitlines():
         item = line.strip()
-        if item in {r"\\1", r"\\\\1"}:
+        if item in {r"\1", r"\\1"}:
             continue
-        if item in {"---", r"\\---", "***"}:
+        if item in {"---", r"\---", "***"}:
             continue
         cleaned.append(line)
-    return "\\n".join(cleaned).strip()
-
+    return "\n".join(cleaned).strip()
 
 def _secret(secrets, key: str, default: str = "") -> str:
     try:
